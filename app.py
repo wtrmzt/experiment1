@@ -627,4 +627,4 @@ def toggle_node_popup(selection, close_clicks, get_info_clicks, reflect_clicks, 
     return {'display': 'none'}, None
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(host='0.0.0.0', port=10000, debug=True)
