@@ -1,6 +1,10 @@
 dash
+dash-core-components
+dash-html-components
+dash-bootstrap-components
 visdcc
+Flask
+openai
 pandas
 numpy
 scikit-learn
-openai
