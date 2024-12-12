@@ -1,5 +1,5 @@
 import dash
-from dash import dcc, html, Input, Output, State
+from dash import Dash,dcc, html, Input, Output, State
 import visdcc
 import os
 from datetime import datetime
@@ -12,11 +12,23 @@ import pandas as pd
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
+import zipfile
+from flask import Flask, send_file
+
 APIKEY=os.getenv("OPENAI_API_KEY")
 
-app = dash.Dash(__name__)
 
+# フォルダを圧縮する関数
+def zip_folder(folder_path, zip_path):
+    print('frag2')
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk(folder_path):
+            for file in files:
+                file_path = os.path.join(root, file)
+                zipf.write(file_path, os.path.relpath(file_path, folder_path))
 
+server = Flask(__name__)
+app = Dash(__name__, server=server)
 
 # CSVデータの読み込み
 def relate_map(nodes, edges):
@@ -385,6 +397,18 @@ def generate_maps_from_reflections(reflection_embeddings, subject_name, syllabus
     print('generate complete')
     return {'nodes':all_new_nodes,'edges':all_new_edges}
 
+# ダウンロードリンクを提供するFlaskルート
+@server.route('/download-zip/<name>')
+def download_zip(name):
+    zip_path = f"{name}_output.zip"
+    folder_path = f"{name}_ex"
+    if not os.path.exists(folder_path):
+        print(f"Error: Folder '{folder_path}' does not exist.")
+        return "Folder not found", 404
+    zip_folder(folder_path, zip_path)
+    print(f"Successfully created zip file: {zip_path}")
+    return send_file(zip_path, as_attachment=True, download_name=f"{name}_folder.zip")
+
 # ダミーデータ（ノードとエッジ）を初期設定
 initial_nodes = [
     {'id': '1', 'label': '条件分岐', 'sentence': 'This is the sentence for Node 1.'},
@@ -458,9 +482,11 @@ app.layout = html.Div([
             html.Div([
                 html.Button('生成', id='generate-graph-button', style={'fontSize': '16px', 'margin': '10px', 'backgroundColor': '#D2B48C', 'color': '#7D7461', 'border': 'none', 'borderRadius': '5px', 'padding': '5px 15px'}),
                 html.Button('関連の取得', id='relate-graph-button', style={'fontSize': '16px', 'margin': '10px', 'backgroundColor': '#D2B48C', 'color': '#7D7461', 'border': 'none', 'borderRadius': '5px', 'padding': '5px 15px'}),
-                html.Button('保存', id='save-button', style={'fontSize': '16px', 'margin': '10px', 'backgroundColor': '#D2B48C', 'color': '#7D7461', 'border': 'none', 'borderRadius': '5px', 'padding': '5px 15px'})
+                html.Button('保存', id='save-button', style={'fontSize': '16px', 'margin': '10px', 'backgroundColor': '#D2B48C', 'color': '#7D7461', 'border': 'none', 'borderRadius': '5px', 'padding': '5px 15px'}),
+                html.Button('ダウンロードリンクを作成', id='download-button', style={'fontSize': '16px', 'margin': '10px', 'backgroundColor': '#D2B48C', 'color': '#7D7461', 'border': 'none', 'borderRadius': '5px', 'padding': '5px 15px'})
             ], style={'padding': '10px', 'textAlign': 'center'})
-        ], style={'width': '100%', 'height': 'auto', 'clear': 'both', 'border': '2px dashed #7D7461', 'backgroundColor': '#F4EBD9', 'padding': '0'})
+        ], style={'width': '100%', 'height': 'auto', 'clear': 'both', 'border': '2px dashed #7D7461', 'backgroundColor': '#F4EBD9', 'padding': '0'}),
+        html.A("Click here to download", href="", id="download-link", style={"display": "none"})
     ], style={'width': '95%', 'float': 'right', 'padding': '0'}),
 ])
 @app.callback(
@@ -625,6 +651,18 @@ def toggle_node_popup(selection, close_clicks, get_info_clicks, reflect_clicks, 
     
     # それ以外のボタンが押されたら、ポップアップを非表示
     return {'display': 'none'}, None
+
+# ボタンをクリックしたらリンクを更新
+@app.callback(
+    Output("download-link", "href"),
+    Output("download-link", "style"),
+    [Input("name-input", "value"), Input("download-button", "n_clicks")]
+)
+def update_download_link(name, n_clicks):
+    if (n_clicks or 0) > 0 and name:
+        
+        return f"/download-zip/{name}", {"display": "block"}
+    return "", {"display": "none"}
 
 if __name__ == '__main__':
     app.run_server(host='0.0.0.0', port=10000, debug=True)
