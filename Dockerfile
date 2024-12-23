@@ -3,6 +3,11 @@ FROM python:3.9-slim
 
 # 必要なライブラリをインストール
 RUN apt-get update && \
+    apt-get install -y build-essential python3-dev
+    
+RUN pip install --upgrade pip setuptools wheel
+
+RUN apt-get update && \
     apt-get install -y mecab libmecab-dev mecab-ipadic-utf8 && \
     rm -rf /var/lib/apt/lists/*
 
