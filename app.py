@@ -169,6 +169,14 @@ def rename_id(map,name):
     return map
 
 def reflection_GPToutput(input_text):
+    mecab = MeCab.Tagger()
+    parsed = mecab.parse(input_text)
+    meishi_text=''
+    for line in parsed.split("\n"):
+        if "名詞" in line:  # 名詞を抽出
+            meishi_text= meishi_text + line.split("\t")[0] + '\n'
+            print(line.split("\t")[0])
+    
     client = OpenAI(api_key=APIKEY)
     node_gpt_output=[]
     res = client.chat.completions.create(
@@ -178,13 +186,15 @@ def reflection_GPToutput(input_text):
     あなたは優秀な教員です。以下の条件に従い、最善の出力をしてください。'''},  # 役割設定
                 {"role": "user", "content": '''
 #条件
-入力に生徒の振り返り記述の内容が書かれる。この記述を基に、"分野ごと"に木を伸ばす知識マップを作成しなさい。
+入力に生徒の振り返り記述のうち名詞のみを抽出したものが与えられる。
+ これらをノードとして，振り返りのマップを作成せよ。すべての名詞を用いる必要はない。""学習を深める特徴的な単語のみ""を抽出せよ。
+
 ・それぞれのノードに対して、140字以内で説明文を生成せよ。
-・ルートノードは、振り返り単元である。
-・「課題」・「演習」などのノードは使用しない
-・ノード名は簡潔にせよ
-・高さは自由である．必要に応じて伸ばして良い
-・作成した木を見返してもいいように、'学習の理解を深める体系的な内容のみ'であること。
+・高さは自由である．他の要素を足してはいけない 
+・作成した木を見返してもいいように、"学習の理解を深める内容のみ"であること。
+・短文で，振り返りの内容が少なければ，ノードは1つのみで良い
+・出力するラベルは振り返り文を踏まえ，シンプルなものにすること
+
     #出力
     PythonのNetworkXライブラリで読み込み可能な、nodes辞書と、edges辞書の2つ。
     ・nodes=[{'id':i,'label':"node_name",'sentence':"writetext"}]：ノードが格納される。idにはノードの番号を格納。labelにはノード名、sentenceには説明文を140字以内で格納する。
@@ -193,7 +203,12 @@ def reflection_GPToutput(input_text):
     ・これ以外は必要ない。
 
     #入力
-                '''+input_text}               # 最初の質問
+'''
++ meishi_text +
+'''
+#振り返り文'''
++ input_text
+    }               # 最初の質問
             ],
             temperature=0.0  # 温度（0-2, デフォルト1）
         )
@@ -411,8 +426,6 @@ def download_zip(name):
 
 # ダミーデータ（ノードとエッジ）を初期設定
 initial_nodes = [
-    {'id': '1', 'label': '条件分岐', 'sentence': 'This is the sentence for Node 1.'},
-    {'id': '2', 'label': 'Node 2', 'sentence': 'This is the sentence for Node 2.'}
 ]
 initial_edges = [{'from': '1', 'to': '2'}]
 
